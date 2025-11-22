@@ -1,0 +1,28 @@
+{
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "start": "wrangler dev",
+    "test": "vitest",
+    "cf-typegen": "wrangler types",
+    "db:create": "wrangler d1 create",
+    "db:generate": "drizzle-kit generate:sqlite",
+    "db:apply": "wrangler d1 migrations apply"
+  },
+  "dependencies": {
+    "@hono/swagger-ui": "^0.5.1",
+    "@hono/zod-openapi": "^0.19.6",
+    "drizzle-orm": "^0.43.1",
+    "hono": "^4.7.9",
+    "uuid": "^11.1.0",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.8.19",
+    "@cloudflare/workers-types": "^4.20250515.0",
+    "@types/uuid": "^10.0.0",
+    "drizzle-kit": "^0.31.1",
+    "wrangler": "^4.15.2",
+    "vitest": "~3.0.7"
+  }
+}
