@@ -1,8 +1,5 @@
-export { ProfileResponseSuccess } from "./profile.dto";
-export {
-  SigninBody, SigninResponseBadRequest, SigninResponseSuccess
-} from "./signin.dto";
-export {
-  SignupBody, SignupResponseBadRequest, SignupResponseSuccess
-} from "./signup.dto";
-
+export * from "./user.dto";
+export * from "./signin.dto";
+export * from "./signup.dto";
+export * from "./profile.dto";
+export * from "./register-school-owner.dto";

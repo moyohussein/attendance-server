@@ -3,6 +3,8 @@ import { z } from "@hono/zod-openapi";
 export const SignupBody = z.object({
   email: z.string().email(),
   password: z.string().min(8),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
 });
 
 export const SignupResponseSuccess = z.object({

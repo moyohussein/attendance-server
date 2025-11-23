@@ -1,11 +1,19 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "your-project-name",
+	"name": "attendance-server",
 	"main": "src/index.ts",
 	"compatibility_date": "2025-05-15",
 	"observability": {
 		"enabled": true
 	},
-	"compatibility_flags": ["nodejs_compat"],
-	"d1_databases": []
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "attendance-db",
+			"database_id": "2d3eeb29-a8ef-47fd-848a-5c4babdc48c2"
+		}
+	]
 }

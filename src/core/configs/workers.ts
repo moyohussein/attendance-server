@@ -1,4 +1,5 @@
 import { DrizzleD1Database } from "drizzle-orm/d1";
+import { UserRole } from "../../models";
 
 export type Bindings = {
   DB: D1Database;
@@ -7,5 +8,5 @@ export type Bindings = {
 
 export type Variables = {
   db: DrizzleD1Database<Record<string, never>>;
-  jwtPayload?: { id: string };
+  jwtPayload?: { id: string; role?: UserRole; schoolId?: string };
 };

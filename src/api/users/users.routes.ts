@@ -1,40 +1,85 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Bindings, Variables } from "../../core/configs/workers";
 import { auth } from "../../core/middlewares/auth.middleware";
-import { ProfileOpenAPI, SigninOpenAPI, SignupOpenAPI } from "./openapi";
+import { ProfileOpenAPI, SigninOpenAPI, SignupOpenAPI, RegisterSchoolOwnerOpenAPI } from "./openapi";
 import { UsersService } from "./users.service";
+import { UserRole } from "../../models";
 
 const routes = new OpenAPIHono<{
   Bindings: Bindings;
-  Variables: Variables & { usersService: UsersService };
+  Variables: Variables;
 }>();
-
-routes.use(async (ctx, next) => {
-  const usersService = UsersService.getInstance(ctx.var.db, ctx.env.JWT_SECRET);
-  ctx.set("usersService", usersService);
-  await next();
-});
 
 //#region Sign up
 routes.openapi(SignupOpenAPI, async (ctx) => {
-  const { email, password } = ctx.req.valid("json");
+  const { email, password, firstName, lastName } = ctx.req.valid("json");
 
-  const userExists = await ctx.var.usersService.emailExists(email);
+  if (!ctx.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is not configured');
+  }
+
+  const usersService = UsersService.getInstance(ctx.var.db, ctx.env.JWT_SECRET);
+  const userExists = await usersService.emailExists(email);
 
   if (userExists) {
     return ctx.json({ message: "Email already in use" }, 400);
   }
 
-  const id = await ctx.var.usersService.signUp({ email, password });
+  // Default to Teacher role for regular signups
+  const id = await usersService.signUp({
+    email,
+    password,
+    firstName,
+    lastName,
+    role: UserRole.Teacher
+  });
   return ctx.json({ id }, 200);
 });
 //#endregion
+
+//#region Register School Owner
+routes.openapi(RegisterSchoolOwnerOpenAPI, async (ctx) => {
+  try {
+    const { email, password, firstName, lastName, schoolName } = ctx.req.valid("json");
+
+    if (!ctx.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET is not configured');
+    }
+
+    const usersService = UsersService.getInstance(ctx.var.db, ctx.env.JWT_SECRET);
+
+    const userExists = await usersService.emailExists(email);
+
+    if (userExists) {
+      return ctx.json({ message: "Email already in use" }, 400);
+    }
+
+    const id = await usersService.registerSchoolOwner({
+      email,
+      password,
+      firstName,
+      lastName,
+      schoolName,
+    });
+    return ctx.json({ id }, 201);
+  } catch (e: any) {
+    console.error("Error in register-school-owner:", e);
+    return ctx.json({ message: e.message || "Internal Server Error" }, 500);
+  }
+});
+//#endregion
+
 //#region Sign in
 routes.openapi(SigninOpenAPI, async (ctx) => {
   const { email, password } = ctx.req.valid("json");
 
   try {
-    const { token } = await ctx.var.usersService.signIn({
+    if (!ctx.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET is not configured');
+    }
+
+    const usersService = UsersService.getInstance(ctx.var.db, ctx.env.JWT_SECRET);
+    const { token } = await usersService.signIn({
       email,
       password,
     });
@@ -45,17 +90,24 @@ routes.openapi(SigninOpenAPI, async (ctx) => {
   }
 });
 //#endregion
+
 //#region Profile
-routes.use(ProfileOpenAPI.getRoutingPath(), auth);
+routes.use("/profile", auth);
 routes.openapi(ProfileOpenAPI, async (ctx) => {
   const userId = ctx.var.jwtPayload.id!;
-  const user = await ctx.var.usersService.profile(userId);
+
+  if (!ctx.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is not configured');
+  }
+
+  const usersService = UsersService.getInstance(ctx.var.db, ctx.env.JWT_SECRET);
+  const user = await usersService.profile(userId);
 
   return ctx.json(
     {
       user: {
         ...user,
-        created_at: !!user.created_at ? user.created_at : undefined,
+        createdAt: !!user.createdAt ? user.createdAt : undefined,
       },
     },
     200

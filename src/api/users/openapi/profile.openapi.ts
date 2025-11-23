@@ -6,7 +6,7 @@ export const ProfileOpenAPI = createRoute({
   tags: ["Users"],
   operationId: "profile",
   summary: "Profile",
-  path: "/",
+  path: "/profile",
   security: [{ Bearer: [] }],
   responses: {
     200: {
