@@ -15,6 +15,13 @@
       "when": 1763822003659,
       "tag": "0001_first_golden_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1763979959991,
+      "tag": "0002_add-google-id-to-users",
+      "breakpoints": true
     }
   ]
 }

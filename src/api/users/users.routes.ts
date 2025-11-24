@@ -1,8 +1,17 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Bindings, Variables } from "../../core/configs/workers";
 import { auth } from "../../core/middlewares/auth.middleware";
-import { ProfileOpenAPI, SigninOpenAPI, SignupOpenAPI, RegisterSchoolOwnerOpenAPI } from "./openapi";
+import {
+  ProfileOpenAPI,
+  SigninOpenAPI,
+  SignupOpenAPI,
+  RegisterSchoolOwnerOpenAPI,
+  GoogleOAuthRoute,
+  GoogleOAuthCallbackRoute,
+  GoogleLoginRoute
+} from "./openapi";
 import { UsersService } from "./users.service";
+import { GoogleOAuthService } from "./google-oauth.service";
 import { UserRole } from "../../models";
 
 const routes = new OpenAPIHono<{
@@ -112,6 +121,101 @@ routes.openapi(ProfileOpenAPI, async (ctx) => {
     },
     200
   );
+});
+//#endregion
+
+//#region Google OAuth
+routes.get("/google", (ctx) => {
+  try {
+    const redirectUri = ctx.req.query("redirect_uri") || ctx.env.GOOGLE_REDIRECT_URI || `${new URL(ctx.req.url).origin}/api/users/google/callback`;
+    const state = ctx.req.query("state"); // Optional state for CSRF protection
+
+    if (!ctx.env.GOOGLE_CLIENT_ID || !ctx.env.GOOGLE_CLIENT_SECRET) {
+      throw new Error('Google OAuth is not configured. Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET');
+    }
+
+    const googleOAuthService = GoogleOAuthService.getInstance(
+      ctx.var.db,
+      ctx.env.JWT_SECRET,
+      ctx.env.GOOGLE_CLIENT_ID,
+      ctx.env.GOOGLE_CLIENT_SECRET,
+      redirectUri
+    );
+
+    const authUrl = googleOAuthService.getAuthUrl(state);
+    return ctx.redirect(authUrl);
+  } catch (error: any) {
+    console.error("Error in Google OAuth init:", error);
+    return ctx.json({ message: error.message || "Internal Server Error" }, 500);
+  }
+});
+
+routes.get("/google/callback", async (ctx) => {
+  try {
+    const { code, state } = ctx.req.query();
+
+    if (!code) {
+      return ctx.json({ message: "Missing authorization code" }, 400);
+    }
+
+    if (!ctx.env.GOOGLE_CLIENT_ID || !ctx.env.GOOGLE_CLIENT_SECRET) {
+      throw new Error('Google OAuth is not configured. Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET');
+    }
+
+    const redirectUri = ctx.env.GOOGLE_REDIRECT_URI || `${new URL(ctx.req.url).origin}/api/users/google/callback`;
+
+    const googleOAuthService = GoogleOAuthService.getInstance(
+      ctx.var.db,
+      ctx.env.JWT_SECRET,
+      ctx.env.GOOGLE_CLIENT_ID,
+      ctx.env.GOOGLE_CLIENT_SECRET,
+      redirectUri
+    );
+
+    const result = await googleOAuthService.authenticate(code, state);
+
+    // Redirect to frontend with token
+    const frontendUrl = ctx.env.FRONTEND_URL || "http://localhost:3000";
+    const redirectUrl = new URL(frontendUrl);
+    redirectUrl.searchParams.set("token", result.token);
+    redirectUrl.searchParams.set("user", JSON.stringify(result.user));
+
+    return ctx.redirect(redirectUrl.toString());
+  } catch (error: any) {
+    console.error("Error in Google OAuth callback:", error);
+    return ctx.json({ message: error.message || "Google authentication failed" }, 401);
+  }
+});
+
+routes.openapi(GoogleLoginRoute, async (ctx) => {
+  try {
+    const { code, state } = ctx.req.valid("json");
+
+    if (!code) {
+      return ctx.json({ message: "Missing authorization code" }, 400);
+    }
+
+    if (!ctx.env.GOOGLE_CLIENT_ID || !ctx.env.GOOGLE_CLIENT_SECRET) {
+      throw new Error('Google OAuth is not configured. Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET');
+    }
+
+    const redirectUri = ctx.env.GOOGLE_REDIRECT_URI || `${new URL(ctx.req.url).origin}/api/users/google/callback`;
+
+    const googleOAuthService = GoogleOAuthService.getInstance(
+      ctx.var.db,
+      ctx.env.JWT_SECRET,
+      ctx.env.GOOGLE_CLIENT_ID,
+      ctx.env.GOOGLE_CLIENT_SECRET,
+      redirectUri
+    );
+
+    const result = await googleOAuthService.authenticate(code, state);
+
+    return ctx.json(result, 200);
+  } catch (error: any) {
+    console.error("Error in Google OAuth login API:", error);
+    return ctx.json({ message: error.message || "Google authentication failed" }, 401);
+  }
 });
 //#endregion
 
